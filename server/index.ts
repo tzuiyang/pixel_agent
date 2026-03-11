@@ -7,6 +7,7 @@ import { getDb } from './db/index.js';
 import { characterRoutes } from './routes/character.js';
 import { sceneRoutes } from './routes/scene.js';
 import { taskRoutes } from './routes/task.js';
+import { pipelineRoutes } from './routes/pipeline.js';
 import { WSManager } from './services/wsManager.js';
 
 dotenv.config({ path: '../.env' });
@@ -35,6 +36,7 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/character', characterRoutes);
 app.use('/api/scene', sceneRoutes);
 app.use('/api/task', taskRoutes);
+app.use('/api/pipeline', pipelineRoutes);
 
 // Create HTTP server and attach WebSocket
 const server = http.createServer(app);

@@ -1,9 +1,18 @@
 import { Router, Request, Response } from 'express';
 import { getDb } from '../db/index.js';
-import { executeTask, getOrCreateMachine } from '../services/taskExecutor.js';
+import { executeTask, getOrCreateMachine, getActiveTaskCount, getQueueLength } from '../services/taskExecutor.js';
 import type { Character, Task, ActivityEntry } from '../../shared/types.js';
 
 export const taskRoutes = Router();
+
+// BUG-007 FIX: /status must be ABOVE /:id so Express doesn't treat "status" as an ID
+taskRoutes.get('/status', (_req: Request, res: Response) => {
+  res.json({
+    activeTasks: getActiveTaskCount(),
+    queuedTasks: getQueueLength(),
+    maxConcurrent: 3,
+  });
+});
 
 // Assign a task to a character
 taskRoutes.post('/assign', async (req: Request, res: Response) => {

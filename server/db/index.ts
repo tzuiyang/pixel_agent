@@ -20,6 +20,19 @@ export function getDb(): Database.Database {
 function runMigrations() {
   const schema = fs.readFileSync(SCHEMA_PATH, 'utf-8');
   db.exec(schema);
+
+  // BUG-024 FIX: reset characters stuck in working/thinking state from previous crash
+  const stuck = db.prepare(`UPDATE characters SET state = 'idle', current_task = NULL WHERE state IN ('working', 'thinking', 'waiting')`).run();
+  if (stuck.changes > 0) {
+    console.log(`Reset ${stuck.changes} character(s) stuck in non-idle state from previous session`);
+  }
+
+  // Also fail any running tasks that survived a crash
+  const stuckTasks = db.prepare(`UPDATE tasks SET status = 'failed', output = 'Server restarted', completed_at = ? WHERE status = 'running'`)
+    .run(new Date().toISOString());
+  if (stuckTasks.changes > 0) {
+    console.log(`Marked ${stuckTasks.changes} stuck task(s) as failed`);
+  }
 }
 
 export function closeDb() {

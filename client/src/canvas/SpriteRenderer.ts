@@ -14,9 +14,37 @@ export class SpriteRenderer {
   private bounceOffset: number = 0;
   private bouncePhase: number = 0;
 
+  // Sprite cache: pre-rendered frames as offscreen canvases
+  private frameCache = new Map<string, OffscreenCanvas>();
+
   constructor(sprite: SpriteData, scale: number = 3) {
     this.sprite = sprite;
     this.scale = scale;
+    this.prebakeFrames();
+  }
+
+  private prebakeFrames() {
+    for (const [animName, frames] of Object.entries(this.sprite.frames)) {
+      const resolvedFrames = Array.isArray(frames[0]?.[0])
+        ? (frames as AnimationFrame[])
+        : [frames as unknown as AnimationFrame];
+
+      resolvedFrames.forEach((frame, i) => {
+        const key = `${animName}:${i}`;
+        const offscreen = new OffscreenCanvas(this.pixelWidth, this.pixelHeight);
+        const octx = offscreen.getContext('2d')!;
+        for (let py = 0; py < this.sprite.height; py++) {
+          for (let px = 0; px < this.sprite.width; px++) {
+            const color = frame[py]?.[px];
+            if (color && color !== 'transparent') {
+              octx.fillStyle = color;
+              octx.fillRect(px * this.scale, py * this.scale, this.scale, this.scale);
+            }
+          }
+        }
+        this.frameCache.set(key, offscreen);
+      });
+    }
   }
 
   get pixelWidth(): number {
@@ -39,22 +67,17 @@ export class SpriteRenderer {
   }
 
   update(deltaMs: number) {
-    // Frame animation
+    // BUG-015 FIX: use appropriate frame interval — don't double-add deltaMs
+    const effectiveInterval = this.currentAnimation.startsWith('idle')
+      ? this.frameInterval * 2  // slower cycling for idle
+      : this.frameInterval;
+
     this.frameTimer += deltaMs;
-    if (this.frameTimer >= this.frameInterval) {
-      this.frameTimer -= this.frameInterval;
+    if (this.frameTimer >= effectiveInterval) {
+      this.frameTimer -= effectiveInterval;
       const frames = this.getFrames();
       if (frames.length > 1) {
         this.frameIndex = (this.frameIndex + 1) % frames.length;
-      }
-    }
-
-    // Auto-cycle between idle frames
-    const available = Object.keys(this.sprite.frames);
-    if (this.currentAnimation.startsWith('idle')) {
-      const idleFrames = available.filter((k) => k.startsWith('idle'));
-      if (idleFrames.length > 1) {
-        this.frameTimer += deltaMs * 0.5; // slower cycling
       }
     }
 
@@ -64,11 +87,20 @@ export class SpriteRenderer {
   }
 
   draw(ctx: CanvasRenderingContext2D, x: number, y: number) {
+    const drawY = y + this.bounceOffset;
+    const idx = this.frameIndex % Math.max(1, this.getFrames().length);
+    const cacheKey = `${this.currentAnimation}:${idx}`;
+    const cached = this.frameCache.get(cacheKey);
+
+    if (cached) {
+      ctx.drawImage(cached, x, drawY);
+      return;
+    }
+
+    // Fallback to per-pixel rendering if cache miss
     const frames = this.getFrames();
     if (frames.length === 0) return;
-
-    const frame = frames[this.frameIndex % frames.length];
-    const drawY = y + this.bounceOffset;
+    const frame = frames[idx];
 
     for (let py = 0; py < this.sprite.height; py++) {
       for (let px = 0; px < this.sprite.width; px++) {

@@ -116,8 +116,8 @@ function validateSprite(sprite: SpriteData): void {
       continue;
     }
 
-    // Handle case where frames is directly a 2D grid (single frame not wrapped in array)
-    if (frames.length === sprite.height && Array.isArray(frames[0]) && typeof frames[0][0] === 'string' || frames[0][0] === null) {
+    // BUG-020 FIX: proper parentheses for operator precedence
+    if (frames.length === sprite.height && Array.isArray(frames[0]) && (typeof frames[0][0] === 'string' || frames[0][0] === null)) {
       sprite.frames[frameName] = [frames as unknown as AnimationFrame];
       continue;
     }

@@ -58,10 +58,57 @@ characterRoutes.post('/save', (req: Request, res: Response) => {
     const id = uuid();
     const now = new Date().toISOString();
 
+    // BUG-004 FIX: find a unique walkable spawn position
+    let spawnX = body.positionX ?? -1;
+    let spawnY = body.positionY ?? -1;
+
+    if (spawnX < 0 || spawnY < 0) {
+      const sceneRow = db.prepare('SELECT layout_json FROM scenes WHERE id = ?').get(body.sceneId) as any;
+      const occupied = (db.prepare('SELECT position_x, position_y FROM characters WHERE scene_id = ?').all(body.sceneId) as any[])
+        .map((r: any) => `${r.position_x},${r.position_y}`);
+      const occupiedSet = new Set(occupied);
+
+      if (sceneRow) {
+        const layout = JSON.parse(sceneRow.layout_json);
+        const propSet = new Set((layout.props || []).filter((p: any) => !p.walkable).map((p: any) => `${p.x},${p.y}`));
+        const cx = Math.floor(layout.width / 2);
+        const cy = Math.floor(layout.height / 2);
+
+        // BFS from center to find nearest free walkable tile
+        const visited = new Set<string>();
+        const queue = [{ x: cx, y: cy }];
+        visited.add(`${cx},${cy}`);
+        let found = false;
+
+        while (queue.length > 0 && !found) {
+          const cur = queue.shift()!;
+          const tile = layout.tiles?.[cur.y]?.[cur.x];
+          const key = `${cur.x},${cur.y}`;
+          if (tile?.walkable && !propSet.has(key) && !occupiedSet.has(key)) {
+            spawnX = cur.x;
+            spawnY = cur.y;
+            found = true;
+            break;
+          }
+          for (const [dx, dy] of [[0,1],[0,-1],[1,0],[-1,0]]) {
+            const nx = cur.x + dx, ny = cur.y + dy;
+            const nk = `${nx},${ny}`;
+            if (nx >= 0 && ny >= 0 && nx < layout.width && ny < layout.height && !visited.has(nk)) {
+              visited.add(nk);
+              queue.push({ x: nx, y: ny });
+            }
+          }
+        }
+      }
+
+      if (spawnX < 0) spawnX = 5;
+      if (spawnY < 0) spawnY = 5;
+    }
+
     db.prepare(`
       INSERT INTO characters (id, scene_id, name, description, sprite_json, position_x, position_y, state, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, 'idle', ?)
-    `).run(id, body.sceneId, body.name, body.description, JSON.stringify(body.sprite), body.positionX ?? 5, body.positionY ?? 5, now);
+    `).run(id, body.sceneId, body.name, body.description, JSON.stringify(body.sprite), spawnX, spawnY, now);
 
     const character: Character = {
       id,
@@ -69,8 +116,8 @@ characterRoutes.post('/save', (req: Request, res: Response) => {
       name: body.name,
       description: body.description,
       sprite: body.sprite,
-      positionX: body.positionX ?? 5,
-      positionY: body.positionY ?? 5,
+      positionX: spawnX,
+      positionY: spawnY,
       state: 'idle',
       currentTask: null,
       createdAt: now,
@@ -104,9 +151,31 @@ characterRoutes.get('/scene/:sceneId', (req: Request, res: Response) => {
   res.json(rows.map(rowToCharacter));
 });
 
+// BUG-005 FIX: Update character position
+characterRoutes.patch('/:id/position', (req: Request, res: Response) => {
+  const { x, y } = req.body;
+  if (typeof x !== 'number' || typeof y !== 'number') {
+    res.status(400).json({ error: 'x and y must be numbers' });
+    return;
+  }
+  const db = getDb();
+  const result = db.prepare('UPDATE characters SET position_x = ?, position_y = ? WHERE id = ?')
+    .run(x, y, req.params.id);
+  if (result.changes === 0) {
+    res.status(404).json({ error: 'Character not found' });
+    return;
+  }
+  res.json({ updated: true });
+});
+
 // Delete a character
 characterRoutes.delete('/:id', (req: Request, res: Response) => {
   const db = getDb();
+
+  // BUG-009 FIX: fail any running tasks before deleting
+  db.prepare(`UPDATE tasks SET status = 'failed', output = 'Character deleted', completed_at = ? WHERE character_id = ? AND status IN ('running', 'pending')`)
+    .run(new Date().toISOString(), req.params.id);
+
   const result = db.prepare('DELETE FROM characters WHERE id = ?').run(req.params.id);
   if (result.changes === 0) {
     res.status(404).json({ error: 'Character not found' });

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { soundManager } from '../lib/soundManager';
 
 export interface Notification {
   id: string;
@@ -15,7 +16,7 @@ interface NotificationToastProps {
 
 export function NotificationToast({ notifications, onDismiss, onCharacterClick }: NotificationToastProps) {
   return (
-    <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+    <div className="fixed top-4 z-50 flex flex-col gap-2 pointer-events-none" style={{ right: '26rem' }}>
       {notifications.map((n) => (
         <ToastItem
           key={n.id}
@@ -40,6 +41,9 @@ function ToastItem({
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
+    if (notification.type === 'success') soundManager.play('complete');
+    else if (notification.type === 'error') soundManager.play('error');
+
     requestAnimationFrame(() => setVisible(true));
     const timer = setTimeout(() => {
       setVisible(false);

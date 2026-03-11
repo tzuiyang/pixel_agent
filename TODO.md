@@ -2,10 +2,14 @@
 
 > Building from zero. Ordered by dependency — each phase unlocks the next. Every task includes what to build, where it lives, and why it matters.
 
-## STATUS: Phases 0-4 COMPLETE (2026-03-11)
-- 9 test files, 115 unit tests, all passing
+## STATUS: Phases 0-8 COMPLETE (2026-03-11)
+- 13 test files, 148 unit tests, all passing
 - Full backend: Express + WebSocket + SQLite + Claude API integration
 - Full frontend: React + Canvas + Tailwind, scene rendering, character creation, agent inspector
+- Phase 5: Multi-agent concurrency (max 3 concurrent, queue system)
+- Phase 6: Scene editor (tile painter, prop placer, undo stack, keyboard shortcuts)
+- Phase 7: Agent handoff pipelines ({{previousOutput}} template chaining)
+- Phase 8: Polish (sound effects, onboarding guide, sprite caching, WS exponential backoff)
 - `npm run dev` starts both client (5173) and server (3001)
 - Add your ANTHROPIC_API_KEY to .env to enable sprite generation and task execution
 

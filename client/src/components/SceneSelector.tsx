@@ -49,6 +49,11 @@ export function SceneSelector({ onSceneCreated }: SceneSelectorProps) {
         </div>
       )}
 
+      {/* BUG-018 FIX: show loading state while templates fetch */}
+      {templates.length === 0 && !error && (
+        <p className="text-[#8888AA] animate-pulse mb-4">Loading rooms...</p>
+      )}
+
       <div className="grid grid-cols-2 gap-4 max-w-lg">
         {templates.map((t) => (
           <button

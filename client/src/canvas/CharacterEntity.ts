@@ -69,9 +69,13 @@ export class CharacterEntity {
     this.moving = path.length > 0;
   }
 
-  moveToWorkstation(tileRenderer: TileRenderer) {
-    const target = tileRenderer.findNearestWorkstation(Math.round(this.gridX), Math.round(this.gridY));
+  moveToWorkstation(tileRenderer: TileRenderer, claimedWorkstations?: Set<string>) {
+    const target = tileRenderer.findNearestWorkstation(Math.round(this.gridX), Math.round(this.gridY), claimedWorkstations);
     if (target) {
+      // Reserve this workstation
+      if (claimedWorkstations) {
+        claimedWorkstations.add(`${target.x},${target.y}`);
+      }
       const path = bfsPath(tileRenderer, Math.round(this.gridX), Math.round(this.gridY), target.x, target.y);
       this.moveTo(path);
     }
@@ -115,9 +119,9 @@ export class CharacterEntity {
 
     this.spriteRenderer.draw(ctx, drawX, drawY);
 
-    // Name tag
+    // BUG-027 FIX: larger, more readable name tag
     ctx.save();
-    ctx.font = '9px monospace';
+    ctx.font = '11px monospace';
     ctx.fillStyle = '#E8E8F8';
     ctx.textAlign = 'center';
     ctx.fillText(this.name, px + this.tileSize / 2, drawY + spriteH + 10);

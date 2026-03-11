@@ -124,12 +124,16 @@ export class TileRenderer {
     const accentPad = Math.floor(s * 0.3);
     ctx.fillRect(px + accentPad, py + accentPad, s - accentPad * 2, s - accentPad * 2);
 
-    // Workstation indicator
+    // BUG-029 FIX: much more visible workstation indicator
     if (isWorkstation) {
-      ctx.fillStyle = '#FFD700';
-      ctx.globalAlpha = 0.4;
-      ctx.fillRect(px, py, s, 2);
+      ctx.strokeStyle = '#FFD700';
+      ctx.lineWidth = 1.5;
+      ctx.globalAlpha = 0.8;
+      ctx.strokeRect(px + 1, py + 1, s - 2, s - 2);
       ctx.globalAlpha = 1;
+      // Small lightning bolt indicator in corner
+      ctx.fillStyle = '#FFD700';
+      ctx.fillRect(px + s - 4, py + 1, 3, 3);
     }
   }
 
@@ -160,32 +164,42 @@ export class TileRenderer {
     return true;
   }
 
-  findNearestWorkstation(fromX: number, fromY: number): { x: number; y: number } | null {
+  findNearestWorkstation(fromX: number, fromY: number, claimedWorkstations?: Set<string>): { x: number; y: number } | null {
     const workstations = this.layout.props.filter((p) => p.isWorkstation);
     if (workstations.length === 0) return null;
 
-    let closest = workstations[0];
-    let minDist = Infinity;
+    // Sort by distance
+    const sorted = [...workstations].sort(
+      (a, b) => (Math.abs(a.x - fromX) + Math.abs(a.y - fromY)) - (Math.abs(b.x - fromX) + Math.abs(b.y - fromY))
+    );
 
-    for (const ws of workstations) {
-      const dist = Math.abs(ws.x - fromX) + Math.abs(ws.y - fromY);
-      if (dist < minDist) {
-        minDist = dist;
-        closest = ws;
+    // IMPROVE 2.2: Try each workstation, skipping claimed ones
+    for (const ws of sorted) {
+      const adjacents = [
+        { x: ws.x, y: ws.y + 1 },
+        { x: ws.x, y: ws.y - 1 },
+        { x: ws.x + 1, y: ws.y },
+        { x: ws.x - 1, y: ws.y },
+      ];
+
+      for (const adj of adjacents) {
+        const key = `${adj.x},${adj.y}`;
+        if (this.isWalkable(adj.x, adj.y) && (!claimedWorkstations || !claimedWorkstations.has(key))) {
+          return adj;
+        }
       }
     }
 
-    // Find walkable tile adjacent to workstation
-    const adjacents = [
-      { x: closest.x, y: closest.y + 1 },
-      { x: closest.x, y: closest.y - 1 },
-      { x: closest.x + 1, y: closest.y },
-      { x: closest.x - 1, y: closest.y },
-    ];
-
-    for (const adj of adjacents) {
-      if (this.isWalkable(adj.x, adj.y)) {
-        return adj;
+    // Fallback: any walkable adjacent tile (ignore claims)
+    for (const ws of sorted) {
+      const adjacents = [
+        { x: ws.x, y: ws.y + 1 },
+        { x: ws.x, y: ws.y - 1 },
+        { x: ws.x + 1, y: ws.y },
+        { x: ws.x - 1, y: ws.y },
+      ];
+      for (const adj of adjacents) {
+        if (this.isWalkable(adj.x, adj.y)) return adj;
       }
     }
 

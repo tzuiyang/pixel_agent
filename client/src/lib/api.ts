@@ -24,6 +24,8 @@ export const createScene = (templateId: string, name?: string) =>
   request('/scene/create', { method: 'POST', body: JSON.stringify({ templateId, name }) });
 export const getScene = (id: string) => request(`/scene/${id}`);
 export const getScenes = () => request<any[]>('/scene');
+export const updateScene = (id: string, layout: any) =>
+  request(`/scene/${id}`, { method: 'PUT', body: JSON.stringify({ layout }) });
 export const deleteScene = (id: string) => request(`/scene/${id}`, { method: 'DELETE' });
 
 // Characters
@@ -36,6 +38,8 @@ export const saveCharacter = (data: { sceneId: string; name: string; description
   request('/character/save', { method: 'POST', body: JSON.stringify(data) });
 export const getSceneCharacters = (sceneId: string) => request<any[]>(`/character/scene/${sceneId}`);
 export const deleteCharacter = (id: string) => request(`/character/${id}`, { method: 'DELETE' });
+export const updateCharacterPosition = (id: string, x: number, y: number) =>
+  request(`/character/${id}/position`, { method: 'PATCH', body: JSON.stringify({ x, y }) });
 
 // Tasks
 export const assignTask = (characterId: string, prompt: string) =>

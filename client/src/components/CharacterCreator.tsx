@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import * as api from '../lib/api';
 import type { SpriteData } from '@shared/types';
 import { SpriteRenderer } from '../canvas/SpriteRenderer';
+import { soundManager } from '../lib/soundManager';
 
 interface CharacterCreatorProps {
   sceneId: string;
@@ -18,6 +19,17 @@ export function CharacterCreator({ sceneId, onCharacterCreated, onClose }: Chara
   const [attempt, setAttempt] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
+
+  // BUG-019 FIX: reset state when component mounts (key change or reopen)
+  useEffect(() => {
+    return () => {
+      setDescription('');
+      setName('');
+      setSprite(null);
+      setError('');
+      setAttempt(0);
+    };
+  }, []);
 
   // Render sprite preview
   useEffect(() => {
@@ -64,6 +76,7 @@ export function CharacterCreator({ sceneId, onCharacterCreated, onClose }: Chara
       setSprite(result.sprite);
       setName(result.suggestedName);
       setAttempt((a) => a + 1);
+      soundManager.play('click');
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -81,6 +94,7 @@ export function CharacterCreator({ sceneId, onCharacterCreated, onClose }: Chara
         description,
         sprite,
       });
+      soundManager.play('create');
       onCharacterCreated(character);
     } catch (e: any) {
       setError(e.message);
@@ -99,8 +113,8 @@ export function CharacterCreator({ sceneId, onCharacterCreated, onClose }: Chara
           <h2 className="text-xl font-bold" style={{ color: '#9B5DE5' }}>
             Create Character
           </h2>
-          <button onClick={onClose} className="text-[#8888AA] hover:text-white text-xl cursor-pointer">
-            x
+          <button onClick={onClose} className="text-[#8888AA] hover:text-white text-lg leading-none cursor-pointer" aria-label="Close">
+            &times;
           </button>
         </div>
 

@@ -6,6 +6,7 @@ class WebSocketClient {
   private handlers = new Map<WSEventType, Set<Handler>>();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectDelay = 1000;
+  private maxReconnectDelay = 30000;
 
   connect() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -35,7 +36,9 @@ class WebSocketClient {
       this.scheduleReconnect();
     };
 
-    this.ws.onerror = () => {
+    // BUG-014 FIX: log connection errors instead of silently swallowing
+    this.ws.onerror = (event) => {
+      console.warn('WebSocket connection error — will attempt reconnect', event);
       this.ws?.close();
     };
   }
@@ -44,7 +47,7 @@ class WebSocketClient {
     if (this.reconnectTimer) return;
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
-      this.reconnectDelay = Math.min(this.reconnectDelay * 2, 10000);
+      this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay);
       this.connect();
     }, this.reconnectDelay);
   }

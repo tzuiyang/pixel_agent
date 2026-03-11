@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
+import Markdown from 'react-markdown';
 import * as api from '../lib/api';
 import type { Character, Task } from '@shared/types';
+import { soundManager } from '../lib/soundManager';
 
 interface AgentInspectorProps {
   character: Character;
@@ -24,6 +26,7 @@ export function AgentInspector({ character, onClose, onTaskAssigned, onDelete }:
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showHistory, setShowHistory] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   // Load task history
   useEffect(() => {
@@ -36,6 +39,7 @@ export function AgentInspector({ character, onClose, onTaskAssigned, onDelete }:
     setError('');
     try {
       await api.assignTask(character.id, taskInput.trim());
+      soundManager.play('assign');
       setTaskInput('');
       onTaskAssigned();
     } catch (e: any) {
@@ -67,8 +71,9 @@ export function AgentInspector({ character, onClose, onTaskAssigned, onDelete }:
           <h2 className="text-lg font-bold">{character.name}</h2>
           <p className="text-xs text-[#8888AA]">{character.description}</p>
         </div>
-        <button onClick={onClose} className="text-[#8888AA] hover:text-white text-xl cursor-pointer">
-          x
+        {/* BUG-025 FIX: proper close button */}
+        <button onClick={onClose} className="text-[#8888AA] hover:text-white text-lg leading-none cursor-pointer" aria-label="Close">
+          &times;
         </button>
       </div>
 
@@ -131,10 +136,24 @@ export function AgentInspector({ character, onClose, onTaskAssigned, onDelete }:
           </div>
           <p className="text-xs text-[#8888AA] mb-2">{latestTask.prompt}</p>
           <div
-            className="text-sm p-3 rounded-lg max-h-64 overflow-y-auto whitespace-pre-wrap"
+            className="text-sm p-3 rounded-lg max-h-64 overflow-y-auto prose prose-invert prose-sm max-w-none"
             style={{ backgroundColor: '#0A0A1A', color: '#C8C8E8' }}
           >
-            {latestTask.output}
+            <Markdown
+              components={{
+                code: ({ children, className }) => {
+                  const isBlock = className?.startsWith('language-');
+                  return isBlock ? (
+                    <pre className="bg-[#1A1A3A] p-2 rounded overflow-x-auto text-xs"><code>{children}</code></pre>
+                  ) : (
+                    <code className="bg-[#1A1A3A] px-1 rounded text-xs">{children}</code>
+                  );
+                },
+                pre: ({ children }) => <>{children}</>,
+              }}
+            >
+              {latestTask.output}
+            </Markdown>
           </div>
         </div>
       )}
@@ -176,14 +195,32 @@ export function AgentInspector({ character, onClose, onTaskAssigned, onDelete }:
         </div>
       )}
 
-      {/* Delete */}
+      {/* BUG-010 FIX: delete with confirmation */}
       <div className="p-4">
-        <button
-          onClick={() => onDelete(character.id)}
-          className="text-xs text-red-400 hover:text-red-300 cursor-pointer"
-        >
-          Remove Character
-        </button>
+        {!confirmDelete ? (
+          <button
+            onClick={() => setConfirmDelete(true)}
+            className="text-xs text-red-400 hover:text-red-300 cursor-pointer"
+          >
+            Remove Character
+          </button>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-red-300">Delete {character.name}?</span>
+            <button
+              onClick={() => onDelete(character.id)}
+              className="text-xs px-2 py-1 rounded bg-red-600 text-white cursor-pointer hover:bg-red-500"
+            >
+              Yes, delete
+            </button>
+            <button
+              onClick={() => setConfirmDelete(false)}
+              className="text-xs px-2 py-1 rounded border border-[#2A2A4A] text-[#8888AA] cursor-pointer hover:text-white"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
