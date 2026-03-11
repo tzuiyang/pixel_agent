@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "strict": true,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "paths": {
+      "@shared/*": ["../shared/*"]
+    },
+    "resolveJsonModule": true,
+    "skipLibCheck": true
+  },
+  "include": [".", "../shared"],
+  "exclude": ["node_modules", "dist"]
+}

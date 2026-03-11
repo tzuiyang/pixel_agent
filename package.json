@@ -1,0 +1,16 @@
+{
+  "name": "pixel-agent",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd server && npx tsx watch index.ts",
+    "client": "cd client && npm run dev",
+    "install:all": "npm install && cd client && npm install && cd ../server && npm install",
+    "test": "cd server && npm test",
+    "test:watch": "cd server && npm run test:watch"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
